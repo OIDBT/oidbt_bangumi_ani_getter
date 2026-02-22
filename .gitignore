@@ -1,0 +1,9 @@
+/*
+!.vscode/
+!oidbt_bangumi_ani_getter/
+!.gitignore
+!README.md
+!ruff.toml
+!pyproject.toml
+
+__pycache__

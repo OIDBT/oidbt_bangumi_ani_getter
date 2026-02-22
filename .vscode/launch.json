@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python 调试",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "oidbt_bangumi_ani_getter",
+            "console": "integratedTerminal",
+        },
+    ],
+}
