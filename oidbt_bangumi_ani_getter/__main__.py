@@ -1,11 +1,14 @@
 import asyncio
-import urllib.request
-
-from .getter import Bangumi_ani_getter
-from .log import log
 
 
 async def run_example():
+    import urllib.request
+
+    from .getter import Bangumi_ani_getter
+    from .log import log
+
+    log.print_level = log.LogLevel.debug
+
     proxies: dict[str, str] = urllib.request.getproxies()
     proxy_url = proxies.get("http")
     if proxy_url is not None:
@@ -21,5 +24,4 @@ async def run_example():
 
 
 if __name__ == "__main__":
-    log.print_level = log.LogLevel.debug
     asyncio.run(run_example())

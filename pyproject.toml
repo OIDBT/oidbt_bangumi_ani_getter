@@ -1,41 +1,29 @@
 [build-system]
 requires = [
     "setuptools>=82",
-    #
 ]
 
 [project]
-name = "oidbt_bangumi_ani_getter"
 dynamic = ["version"]
-readme = "README.md"
+name    = "oidbt_bangumi_ani_getter"
+readme  = "README.md"
 # license = "AGPL-3.0-or-later"
+authors = [{ name = "op200" }]
 classifiers = [
-    # "Topic :: Multimedia",
-    # "Development Status :: 5 - Production/Stable",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    # "Operating System :: Microsoft :: Windows :: Windows 10",
-    # "Operating System :: Microsoft :: Windows :: Windows 11",
-    # "Operating System :: MacOS",
-    # "Operating System :: POSIX :: Linux",
-    # "Intended Audience :: Developers",
-    # "Intended Audience :: Financial and Insurance Industry",
-    # "Intended Audience :: Information Technology",
     "Typing :: Typed",
 ]
-requires-python = ">=3.14"
 dependencies = [
-    "sqlmodel>=0.0.37",
     "aiosqlite>=0.22.1",
-    "httpx[http2,socks,cli,brotli,zstd]>=0.28.1",
     "easyrip>=4.16.1",
+    "httpx[http2,socks,cli,brotli,zstd]>=0.28.1",
+    "sqlmodel>=0.0.37",
 ]
-authors = [{ name = "op200" }]
+requires-python = ">=3.14"
 
 [project.urls]
-Homepage = "https://github.com/"
-Source = "https://github.com/"
+Homepage = "https://github.com/OIDBT/oidbt_bangumi_ani_getter"
+Source   = "https://github.com/OIDBT/oidbt_bangumi_ani_getter"
 
 [tool.setuptools.dynamic]
 version = { attr = "oidbt_bangumi_ani_getter.__version__" }
