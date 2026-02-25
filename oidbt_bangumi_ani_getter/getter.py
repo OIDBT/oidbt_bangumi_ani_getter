@@ -116,7 +116,10 @@ class Bangumi_ani_getter:
 
             except httpx.HTTPStatusError as e:
                 log.error(
-                    "{} 状态码错误: {}", self.__class__.__name__, e.response.status_code
+                    "{} 状态码错误: {} {}",
+                    self.__class__.__name__,
+                    e.response.status_code,
+                    e.response.text,
                 )
             except httpx.ConnectError as e:
                 log.error("{} 连接失败: {}", self.__class__.__name__, e)
