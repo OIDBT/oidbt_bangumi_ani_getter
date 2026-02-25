@@ -2,12 +2,12 @@ import asyncio
 from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn
 
 import httpx
+import sqlmodel
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import (
     JSON,
     Column,
-    Field,
     SQLModel,
     and_,
     create_engine,
@@ -41,6 +41,7 @@ class Bangumi_ani_getter:
             timeout=timeout,
         )
         """HTTP Client"""
+
         if not database_filename.endswith(".db"):
             database_filename += ".db"
         self.sync_engine = create_engine(f"sqlite:///{database_filename}")
@@ -49,6 +50,7 @@ class Bangumi_ani_getter:
             f"sqlite+aiosqlite:///{database_filename}"
         )
         """异步 database engine"""
+
         self.Bangumi_ani_data.metadata.create_all(self.sync_engine)
 
     def __del__(self) -> None:
@@ -178,10 +180,10 @@ class Bangumi_ani_getter:
             raise TypeError("类型检查不通过，终止循环请求") from e
 
     class Bangumi_ani_data(SQLModel, table=True):
-        id: int = Field(description="Bangumi 条目 ID", primary_key=True)
-        name: str = Field(description="条目名")
-        name_cn: str = Field(description="条目中文名")
-        name_alias: list[str] = Field(
+        id: int = sqlmodel.Field(description="Bangumi 条目 ID", primary_key=True)
+        name: str = sqlmodel.Field(description="条目名")
+        name_cn: str = sqlmodel.Field(description="条目中文名")
+        name_alias: list[str] = sqlmodel.Field(
             description="条目别名列表", sa_column=Column(JSON)
         )
 
@@ -206,14 +208,14 @@ class Bangumi_ani_getter:
                     await session.merge(data)
             await session.commit()
 
-    async def get_data(self) -> Sequence[Bangumi_ani_data]:
+    async def get_all_data(self) -> Sequence[Bangumi_ani_data]:
         async with (
             self.DATABASE_LOCK,
             AsyncSession(self.async_engine) as session,
         ):
             return (await session.exec(select(self.Bangumi_ani_data))).all()
 
-    async def get_data_len(self) -> int:
+    async def get_all_data_len(self) -> int:
         async with (
             self.DATABASE_LOCK,
             AsyncSession(self.async_engine) as session,
