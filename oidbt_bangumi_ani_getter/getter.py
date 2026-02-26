@@ -54,7 +54,11 @@ class Bangumi_ani_getter:
         self.Bangumi_ani_data.metadata.create_all(self.sync_engine)
 
     def __del__(self) -> None:
-        asyncio.run(self.client.aclose())
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(self.client.aclose())  # noqa: RUF006
+        except RuntimeError:
+            asyncio.run(self.client.aclose())
 
     class Res_content_data_infobox_别名_value_item(BaseModel):
         model_config = ConfigDict(extra="allow")
@@ -121,6 +125,8 @@ class Bangumi_ani_getter:
                     e.response.status_code,
                     e.response.text,
                 )
+            except httpx.RemoteProtocolError as e:
+                log.error("{} 服务器违反协议: {!r}", self.__class__.__name__, e)
             except httpx.ConnectError as e:
                 log.error("{} 连接失败: {}", self.__class__.__name__, e)
             except httpx.TimeoutException:
