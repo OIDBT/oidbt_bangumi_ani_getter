@@ -33,14 +33,18 @@ class Bangumi_ani_getter:
         database_filename: str,
         proxy: httpx._types.ProxyTypes | None = None,
         timeout: httpx._types.TimeoutTypes = 10,
+        cookies: dict[str, str] | None = None,
+        email: str | None = None,
     ) -> None:
         self.client = httpx.AsyncClient(
             http2=True,
             follow_redirects=True,  # 允许重定向
             proxy=proxy,
             timeout=timeout,
+            headers={k: v for k, v in {"From": email}.items() if v is not None},
         )
         """HTTP Client"""
+        self.cookies = cookies
 
         if not database_filename.endswith(".db"):
             database_filename += ".db"
@@ -90,7 +94,11 @@ class Bangumi_ani_getter:
 
         async def _req(offset: int, /) -> Bangumi_ani_getter.Res_content | None:
             try:
-                log.debug("{} 开始请求", self.__class__.__name__)
+                log.debug(
+                    "{} 开始请求",
+                    self.__class__.__name__,
+                    print_level=log.LogLevel._detail,
+                )
                 response = await self.client.get(
                     "https://api.bgm.tv/v0/subjects",
                     params={
@@ -123,20 +131,27 @@ class Bangumi_ani_getter:
                     "{} 状态码错误: {} {}",
                     self.__class__.__name__,
                     e.response.status_code,
-                    e.response.text,
+                    e.request.url,
                 )
             except httpx.RemoteProtocolError as e:
-                log.error("{} 服务器违反协议: {!r}", self.__class__.__name__, e)
+                log.error(
+                    "{} 服务器违反协议: {!r} {}",
+                    self.__class__.__name__,
+                    e,
+                    e.request.url,
+                )
             except httpx.ConnectError as e:
-                log.error("{} 连接失败: {}", self.__class__.__name__, e)
-            except httpx.TimeoutException:
-                log.warning("{} 请求超时", self.__class__.__name__)
+                log.error(
+                    "{} 连接失败: {} {}", self.__class__.__name__, e, e.request.url
+                )
+            except httpx.TimeoutException as e:
+                log.warning("{} 请求超时: {}", self.__class__.__name__, e.request.url)
             except ValidationError as e:
                 log.error("{} 类型错误: {}", self.__class__.__name__, e)
                 raise
 
         cycle_num: int = 1
-        sleep_time: Literal[1, 10] = 1
+        sleep_time: Literal[1, 30] = 1
         total: int | None = None
         offset: int = 0
         try:
@@ -156,11 +171,15 @@ class Bangumi_ani_getter:
                 offset += self.LIMITE
                 if offset > total:
                     offset = 0
-                    sleep_time = 10  # 循环完一遍，进入慢速循环
+                    sleep_time = 30  # 循环完一遍，进入慢速循环
                     cycle_num += 1
                     log.info("{} 进入第 {} 次循环", self.__class__.__name__, cycle_num)
 
-                log.debug("{} 写入数据库", self.__class__.__name__)
+                log.debug(
+                    "{} 写入数据库",
+                    self.__class__.__name__,
+                    print_level=log.LogLevel._detail,
+                )
                 ani_data_list: list[Bangumi_ani_getter.Bangumi_ani_data] = []
                 for data in res.data:
                     别名_list: list[str] = []
@@ -182,7 +201,12 @@ class Bangumi_ani_getter:
 
                 await self.save_data(ani_data_list)
 
-                log.debug("{} 请求等待 {} sec", self.__class__.__name__, sleep_time)
+                log.debug(
+                    "{} 请求等待 {} sec",
+                    self.__class__.__name__,
+                    sleep_time,
+                    print_level=log.LogLevel._detail,
+                )
                 await asyncio.sleep(sleep_time)
 
         except ValidationError as e:
