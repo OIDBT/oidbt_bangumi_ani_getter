@@ -1,20 +1,12 @@
 import asyncio
+import datetime
 from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn
 
 import httpx
 import sqlmodel
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel import (
-    JSON,
-    Column,
-    SQLModel,
-    and_,
-    create_engine,
-    delete,
-    func,
-    select,
-)
+from sqlmodel import JSON, Column, SQLModel, and_, create_engine, delete, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .log import log
@@ -25,6 +17,7 @@ if TYPE_CHECKING:
 
 class Bangumi_ani_getter:
     DATABASE_LOCK: ClassVar = asyncio.Lock()
+    UPDATE_DEL_THRESHOLD: ClassVar = datetime.timedelta(days=1)
     LIMITE: ClassVar = 100
 
     def __init__(
@@ -75,6 +68,14 @@ class Bangumi_ani_getter:
         key: str
         value: str | list[Bangumi_ani_getter.Res_content_data_infobox_别名_value_item]
 
+    class Res_content_data_rating(BaseModel):
+        model_config = ConfigDict(extra="allow")
+
+        rank: int
+        total: int
+        count: dict[str, int]
+        score: float
+
     class Res_content_data(BaseModel):
         model_config = ConfigDict(extra="allow")
 
@@ -82,6 +83,7 @@ class Bangumi_ani_getter:
         name: str
         name_cn: str
         infobox: list[Bangumi_ani_getter.Res_content_data_infobox]
+        rating: Bangumi_ani_getter.Res_content_data_rating
 
     class Res_content(BaseModel):
         data: list[Bangumi_ani_getter.Res_content_data]
@@ -151,7 +153,7 @@ class Bangumi_ani_getter:
                 raise
 
         cycle_num: int = 1
-        sleep_time: Literal[1, 30] = 1
+        sleep_time: Literal[0, 30] = 0
         total: int | None = None
         offset: int = 0
         try:
@@ -174,6 +176,7 @@ class Bangumi_ani_getter:
                     sleep_time = 30  # 循环完一遍，进入慢速循环
                     cycle_num += 1
                     log.info("{} 进入第 {} 次循环", self.__class__.__name__, cycle_num)
+                    await self._del_data_unrefreshed()
 
                 log.debug(
                     "{} 写入数据库",
@@ -196,6 +199,7 @@ class Bangumi_ani_getter:
                             name=data.name,
                             name_cn=data.name_cn,
                             name_alias=别名_list,
+                            rank=data.rating.rank,
                         )
                     )
 
@@ -218,6 +222,11 @@ class Bangumi_ani_getter:
         name_cn: str = sqlmodel.Field(description="条目中文名")
         name_alias: list[str] = sqlmodel.Field(
             description="条目别名列表", sa_column=Column(JSON)
+        )
+        rank: int
+
+        update_time: datetime.datetime = sqlmodel.Field(
+            description="刷新时间", default_factory=datetime.datetime.now
         )
 
     async def save_data(
@@ -255,3 +264,18 @@ class Bangumi_ani_getter:
         ):
             statement = select(func.count()).select_from(self.Bangumi_ani_data)
             return (await session.exec(statement)).one()
+
+    async def _del_data_unrefreshed(self) -> None:
+        """删除长时间未更新的数据"""
+        async with (
+            self.DATABASE_LOCK,
+            AsyncSession(self.async_engine) as session,
+        ):
+            stmt = delete(self.Bangumi_ani_data).where(
+                and_(
+                    datetime.datetime.now() - self.Bangumi_ani_data.update_time
+                    > self.UPDATE_DEL_THRESHOLD
+                )
+            )
+            await session.exec(stmt)
+            await session.commit()
