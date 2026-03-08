@@ -1,18 +1,56 @@
 import asyncio
 import datetime
-from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn
+from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn, override
 
 import httpx
 import sqlmodel
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy.ext.asyncio import create_async_engine
-from sqlmodel import JSON, Column, SQLModel, and_, create_engine, delete, func, select
+from sqlmodel import (
+    JSON,
+    Column,
+    SQLModel,
+    String,
+    TypeDecorator,
+    and_,
+    create_engine,
+    delete,
+    func,
+    select,
+)
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from .log import log
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+
+    from sqlalchemy import Dialect
+
+
+class DatetimeDecorator(TypeDecorator):
+    impl = String
+    cache_ok = True
+
+    @override
+    def process_bind_param(
+        self,
+        value: datetime.datetime | None,
+        dialect: Dialect,
+    ) -> str | None:
+        if value is None:
+            return None
+        return value.isoformat(sep=" ", timespec="minutes")
+
+    @override
+    def process_result_value(
+        self,
+        value: str | None,
+        dialect: Dialect,
+    ) -> datetime.datetime | None:
+        if not value:
+            return None
+        return datetime.datetime.fromisoformat(value)
 
 
 class Bangumi_ani_getter:
@@ -167,6 +205,7 @@ class Bangumi_ani_getter:
                     else {**res.model_dump(), "data": f"data_len = {len(res.data)}"},
                 )
                 if res is None:
+                    await asyncio.sleep(3)
                     continue
 
                 total = res.total
@@ -226,7 +265,9 @@ class Bangumi_ani_getter:
         rank: int
 
         update_time: datetime.datetime = sqlmodel.Field(
-            description="刷新时间", default_factory=datetime.datetime.now
+            description="刷新时间",
+            default_factory=lambda: datetime.datetime.now().astimezone(),
+            sa_column=Column(DatetimeDecorator),
         )
 
     async def save_data(
@@ -271,11 +312,12 @@ class Bangumi_ani_getter:
             self.DATABASE_LOCK,
             AsyncSession(self.async_engine) as session,
         ):
-            stmt = delete(self.Bangumi_ani_data).where(
-                and_(
-                    datetime.datetime.now() - self.Bangumi_ani_data.update_time
-                    > self.UPDATE_DEL_THRESHOLD
-                )
-            )
-            await session.exec(stmt)
+            result = await session.exec(select(self.Bangumi_ani_data))
+            all_data = result.all()
+
+            now = datetime.datetime.now().astimezone()
+            for data in all_data:
+                if now - data.update_time > self.UPDATE_DEL_THRESHOLD:
+                    await session.delete(data)
+
             await session.commit()
