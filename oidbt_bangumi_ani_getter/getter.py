@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import json
 from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn, override
 
 import httpx
@@ -133,6 +134,7 @@ class Bangumi_ani_getter:
         """自动循环爬取"""
 
         async def _req(offset: int, /) -> Bangumi_ani_getter.Res_content | None:
+            response = None
             try:
                 log.debug(
                     "{} 开始请求",
@@ -189,6 +191,15 @@ class Bangumi_ani_getter:
             except ValidationError as e:
                 log.error("{} 类型错误: {}", self.__class__.__name__, e)
                 raise
+            except json.decoder.JSONDecodeError as e:
+                assert response
+                log.error(
+                    "{} JSON 解码错误: {} {}",
+                    self.__class__.__name__,
+                    e,
+                    response.text,
+                    deep=True,
+                )
 
         cycle_num: int = 1
         sleep_time: Literal[0, 30] = 0
