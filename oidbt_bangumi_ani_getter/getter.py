@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import json
+import ssl
 from typing import TYPE_CHECKING, ClassVar, Literal, NoReturn, override
 
 import httpx
@@ -188,6 +189,13 @@ class Bangumi_ani_getter:
                 )
             except httpx.TimeoutException as e:
                 log.warning("{} 请求超时: {}", self.__class__.__name__, e.request.url)
+            except (httpx.NetworkError, ssl.SSLError) as e:
+                log.warning(
+                    "{} 网络错误: {} {!r}",
+                    self.__class__.__name__,
+                    e,
+                    e,
+                )
             except ValidationError as e:
                 log.error("{} 类型错误: {}", self.__class__.__name__, e)
                 raise
