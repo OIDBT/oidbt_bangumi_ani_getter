@@ -15,7 +15,7 @@ classifiers = [
 ]
 dependencies = [
     "aiosqlite>=0.22.1",
-    "easyrip>=4.16.1",
+    "easyrip>=4.17.5",
     "httpx[http2,socks,cli,brotli,zstd]>=0.28.1",
     "sqlmodel>=0.0.37",
 ]
